@@ -1,0 +1,21 @@
+{
+  "name": "catan-ios",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Native iOS shell (Capacitor) around the Three.js Catan web app in ../web.",
+  "type": "module",
+  "scripts": {
+    "copy-web": "node scripts/copy-web.mjs",
+    "ios:add": "npm run copy-web && npx cap add ios",
+    "ios:sync": "npm run copy-web && npx cap sync ios",
+    "ios:open": "npx cap open ios",
+    "ios:run": "npm run ios:sync && npx cap run ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/ios": "^8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2"
+  }
+}

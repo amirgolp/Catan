@@ -1,0 +1,11 @@
+{
+  "appId": "com.catan.threejs",
+  "appName": "Catan",
+  "webDir": "www",
+  "backgroundColor": "#0f1a22",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0f1a22",
+    "scrollEnabled": false
+  }
+}

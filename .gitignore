@@ -1,0 +1,66 @@
+# ---------------------------------------------------------------- Unreal Engine
+# Generated / per-machine folders. Config/, Content/ and Catan.uproject are the
+# project sources and stay tracked.
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+Plugins/**/Binaries/
+Plugins/**/Intermediate/
+Content/Developers/
+Content/Collections/
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.opendb
+.vs/
+.vsconfig
+
+# ---------------------------------------------------------------- Node / web app
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.cache/
+dist/
+*.tsbuildinfo
+.env
+.env.*
+
+# ---------------------------------------------------------------- Capacitor iOS shell (mobile/)
+# www/ is copied from ../web by `npm run copy-web`; the generated Xcode project
+# keeps its sources, but CocoaPods / SwiftPM downloads and build output are ignored.
+mobile/www/
+mobile/ios/App/App/public/
+mobile/ios/App/App/capacitor.config.json
+mobile/ios/App/App/config.xml
+mobile/ios/App/Pods/
+mobile/ios/App/output/
+mobile/ios/DerivedData/
+mobile/ios/capacitor-cordova-ios-plugins/
+*.xcuserstate
+xcuserdata/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# ---------------------------------------------------------------- Test output
+*.png.tmp
+screenshots/
+puppeteer/
+
+# ---------------------------------------------------------------- Editors and OS
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
