@@ -1,8 +1,8 @@
 // Service worker for the installable app. Files from this site are fetched network-first
 // (edits show up at once, the cached copy is the offline fallback); three.js from the CDN
 // and the Poly Haven textures never change for a given URL, so they are cache-first.
-const CACHE = 'catan-v1';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
+const CACHE = 'catan-v2';
+const SHELL = ['./', './index.html', './play.html', './css/game.css', './css/lobby.css', './manifest.webmanifest', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

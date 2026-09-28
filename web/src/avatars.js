@@ -63,6 +63,25 @@ const PORTRAITS = {
     <ellipse cx="32" cy="22.5" rx="21" ry="4.6" fill="#d7b15c"/>
     <path d="M22.5 22.5 C22.5 8.5 41.5 8.5 41.5 22.5 Z" fill="#e6c572"/>
     <rect x="22.5" y="17.6" width="19" height="3.6" fill="#8a5a2b"/>`,
+  // Hooded ranger
+  green: (bg, dark) => `
+    <rect width="64" height="64" fill="${bg}"/>
+    <path d="M14 66 C14 30 18 10 32 10 C46 10 50 30 50 66 Z" fill="${dark}"/>
+    ${shoulders(dark, '#cfe3c6')}
+    ${face('#d7a17a', '#b98260', 'M29 35.2 Q32 36.8 35 35.2')}
+    <path d="M20.6 26 C21 16 43 16 43.4 26 C40 21.5 35 20.5 32 20.5 C29 20.5 24 21.5 20.6 26 Z" fill="#5b3b24"/>
+    <path d="M19 30 C18 14 46 14 45 30 C43 19 21 19 19 30 Z" fill="${dark}"/>
+    <path d="M26 25.4 L29.2 26.4 M38 25.4 L34.8 26.4" stroke="#3a2416" stroke-width="1.4" stroke-linecap="round"/>`,
+  // Blacksmith with a bandana and moustache
+  brown: (bg, dark) => `
+    <rect width="64" height="64" fill="${bg}"/>
+    ${shoulders(dark, '#e2cdb4')}
+    <rect x="20" y="45" width="24" height="20" rx="3" fill="#3b2b22"/>
+    ${face('#b57a55', '#9a6242', 'M29.4 37 Q32 38.2 34.6 37')}
+    <path d="M27 34.6 Q32 31.6 37 34.6 Q35 36.2 32 35.2 Q29 36.2 27 34.6 Z" fill="#2a1a12"/>
+    <path d="M20.4 24 C21 14 43 14 43.6 24 L43.6 26 L20.4 26 Z" fill="#b8452f"/>
+    <path d="M43 24 L49 21 L48 27 Z" fill="#b8452f"/>
+    <circle cx="27" cy="21" r="0.9" fill="#f0d6b4"/><circle cx="33" cy="19.6" r="0.9" fill="#f0d6b4"/><circle cx="38.6" cy="21.4" r="0.9" fill="#f0d6b4"/>`,
 };
 
 const hex = (n) => '#' + n.toString(16).padStart(6, '0');
@@ -89,6 +108,13 @@ export const ICONS = {
   anchor: icon('<circle cx="12" cy="5" r="2"/><path d="M12 7v14M5 13a7 7 0 0 0 14 0M8 10h8"/>'),
   menu: icon('<circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/>'),
   swap: icon('<path d="M4 8h13l-3-3M20 16H7l3 3"/>'),
+  gear: icon('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
+  chat: icon('<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/>'),
+  log: icon('<path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/>'),
+  stats: icon('<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>'),
+  home: icon('<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>'),
+  map: icon('<path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>'),
+  crown: icon('<path d="M3 18h18M4 16l-1-9 5 4 4-7 4 7 5-4-1 9z"/>'),
 };
 
 /** Dice face with pips as inline markup (CSS draws the pips). */

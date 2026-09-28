@@ -1,16 +1,19 @@
 // Board graph (vertices / edges of the hex layout) and player pieces: settlements,
-// cities and roads, with hover + click placement.
+// cities and roads in each player's skin, with hover + click placement.
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { HEX_R, BASE_TOP, hexCorners } from './hexGeometry.js';
+import { skinGeometry, skinMaterials, DEFAULT_SKIN } from './skins.js';
 
+/** Seat colours in turn order; games use the first N. */
 export const PLAYER_COLORS = {
   red: 0xc0392b,
   blue: 0x2e6db4,
   white: 0xf2efe6,
   orange: 0xe67e22,
+  green: 0x3f9b57,
+  brown: 0x7a4b2a,
 };
+export const PLAYER_KEYS = Object.keys(PLAYER_COLORS);
 
 const PICK_LAYER = 3;
 const AO_LAYER = 2; // pieces take part in the ambient occlusion pass
@@ -66,134 +69,6 @@ export function buildGraph(tiles) {
   return { verts, edges };
 }
 
-/* ------------------------------------------------------------------ piece geometry */
-
-// Piece models are assembled from simple parts, merged per material into one geometry
-// with five groups: 0 painted walls (player colour), 1 roof (darker player colour),
-// 2 stone, 3 wood, 4 window glass. The front of a building faces +z.
-const PART = { wall: 0, roof: 1, stone: 2, wood: 3, glass: 4 };
-
-class Parts {
-  constructor() { this.lists = [[], [], [], [], []]; }
-  add(kind, g) { this.lists[PART[kind]].push(g.index ? g.toNonIndexed() : g); return g; }
-  box(kind, w, h, d, x, y, z, ry = 0) {
-    const g = new THREE.BoxGeometry(w, h, d);
-    g.rotateY(ry);
-    g.translate(x, y + h / 2, z);
-    return this.add(kind, g);
-  }
-  /** Triangular prism, ridge along x: span d across z, height h, length w. */
-  prism(kind, w, d, h, x, y, z) {
-    const shape = new THREE.Shape([new THREE.Vector2(-d / 2, 0), new THREE.Vector2(d / 2, 0), new THREE.Vector2(0, h)]);
-    const g = new THREE.ExtrudeGeometry(shape, { depth: w, bevelEnabled: false });
-    g.rotateY(Math.PI / 2);
-    g.translate(x - w / 2, y, z);
-    return this.add(kind, g);
-  }
-  /** Walls with a gable roof: slabs with eaves overhang, a ridge cap and gable ends. */
-  house(x, z, w, d, wallH, roofH, y = 0) {
-    this.box('wall', w, wallH, d, x, y, z);
-    this.prism('wall', w, d, roofH, x, y + wallH, z);
-    const oh = 0.016, t = 0.012;
-    const a = Math.atan2(roofH, d / 2);
-    const s = d / 2 + oh;
-    const L = s / Math.cos(a);
-    const ridgeY = y + wallH + roofH;
-    for (const side of [1, -1]) {
-      const g = new THREE.BoxGeometry(w + oh * 2, t, L);
-      g.translate(0, t / 2, 0);
-      g.rotateX(side * a);
-      g.translate(x, ridgeY - (s / 2) * Math.tan(a), z + side * (s / 2));
-      this.add('roof', g);
-    }
-    const cap = new THREE.BoxGeometry(w + oh * 2 + 0.004, t * 1.2, t * 1.6);
-    cap.rotateX(Math.PI / 4);
-    cap.translate(x, ridgeY + t * 0.6, z);
-    this.add('roof', cap);
-  }
-  /**
-   * Small window pane with a stone sill. (x, z) are relative to a wall facing +z; ry turns
-   * it to another wall and (cx, cz) is the centre of the building it belongs to.
-   */
-  window(x, y, z, ry = 0, cx = 0, cz = 0, w = 0.022, h = 0.024) {
-    const pane = new THREE.BoxGeometry(w, h, 0.006);
-    const sill = new THREE.BoxGeometry(w + 0.008, 0.005, 0.01);
-    pane.translate(x, y + h / 2, z);
-    sill.translate(x, y - 0.0025, z + 0.002);
-    for (const g of [pane, sill]) { g.rotateY(ry); g.translate(cx, 0, cz); }
-    this.add('glass', pane);
-    this.add('stone', sill);
-  }
-  build() {
-    const merged = this.lists.map((list) => mergeGeometries(list, false));
-    const g = mergeGeometries(merged, true);
-    g.computeBoundingSphere();
-    return g;
-  }
-}
-
-/** A cottage: stone plinth, painted walls, gable roof, chimney, door and lit windows. */
-function makeSettlementGeometry() {
-  const p = new Parts();
-  const w = 0.17, d = 0.12, wallH = 0.085, roofH = 0.065, base = 0.02;
-  p.box('stone', w + 0.04, base, d + 0.04, 0, 0, 0);
-  p.house(0, 0, w, d, wallH, roofH, base);
-  p.box('stone', 0.026, 0.085, 0.026, 0.05, base + wallH + 0.01, -0.028);
-  p.box('stone', 0.032, 0.008, 0.032, 0.05, base + wallH + 0.095, -0.028);
-  p.box('wood', 0.03, 0.052, 0.006, 0, base, d / 2 + 0.002);
-  for (const x of [-0.052, 0.052]) {
-    p.window(x, base + 0.04, d / 2 + 0.002);
-    p.window(x, base + 0.04, d / 2 + 0.002, Math.PI);
-  }
-  p.window(0, base + 0.04, w / 2 + 0.002, Math.PI / 2);
-  p.window(0, base + 0.04, w / 2 + 0.002, -Math.PI / 2);
-  return p.build();
-}
-
-/** A small town: a hall and a square tower with a spire on a shared stone plinth. */
-function makeCityGeometry() {
-  const p = new Parts();
-  const base = 0.022;
-  p.box('stone', 0.29, base, 0.19, 0, 0, 0);
-  // hall
-  const hx = 0.052, hw = 0.15, hd = 0.12, hWall = 0.095, hRoof = 0.07;
-  p.house(hx, 0, hw, hd, hWall, hRoof, base);
-  p.box('wood', 0.034, 0.06, 0.006, hx + 0.02, base, hd / 2 + 0.002);
-  p.window(-0.035, base + 0.05, hd / 2 + 0.002, 0, hx);
-  for (const x of [-0.035, 0.035]) p.window(x, base + 0.05, hd / 2 + 0.002, Math.PI, hx);
-  p.window(0, base + 0.05, hw / 2 + 0.002, Math.PI / 2, hx);
-  // tower
-  const tx = -0.078, tw = 0.092, tH = 0.2;
-  p.box('stone', tw + 0.012, 0.035, tw + 0.012, tx, base, 0);
-  p.box('wall', tw, tH, tw, tx, base, 0);
-  p.box('stone', tw + 0.014, 0.016, tw + 0.014, tx, base + tH, 0);
-  for (const [ox, oz] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
-    p.box('stone', 0.02, 0.022, 0.02, tx + ox * (tw / 2 - 0.004), base + tH + 0.016, oz * (tw / 2 - 0.004));
-  }
-  const spire = new THREE.ConeGeometry(tw * 0.62, 0.13, 4, 1);
-  spire.rotateY(Math.PI / 4);
-  spire.translate(tx, base + tH + 0.016 + 0.065, 0);
-  p.add('roof', spire);
-  const finial = new THREE.SphereGeometry(0.009, 8, 6);
-  finial.translate(tx, base + tH + 0.016 + 0.135, 0);
-  p.add('stone', finial);
-  for (const ry of [0, Math.PI, -Math.PI / 2]) {
-    p.window(0, base + 0.06, tw / 2 + 0.002, ry, tx, 0, 0.02, 0.032);
-    p.window(0, base + 0.135, tw / 2 + 0.002, ry, tx, 0, 0.02, 0.032);
-  }
-  return p.build();
-}
-
-// Modelled at tabletop-piece size, then enlarged so they stand clear of trees and rocks.
-const PIECE_SCALE = 1.5;
-export const settlementGeometry = makeSettlementGeometry().scale(PIECE_SCALE, PIECE_SCALE, PIECE_SCALE);
-export const cityGeometry = makeCityGeometry().scale(PIECE_SCALE, PIECE_SCALE, PIECE_SCALE);
-export const roadGeometry = (() => {
-  const g = new RoundedBoxGeometry(0.44, 0.06, 0.1, 2, 0.018);
-  g.translate(0, 0.03, 0);
-  return g;
-})();
-
 /* ------------------------------------------------------------------ manager */
 
 export class Pieces {
@@ -210,19 +85,15 @@ export class Pieces {
       this.vertexEdges[e.a].push(e);
       this.vertexEdges[e.b].push(e);
     }
-    // Per player: [walls, roof, stone, wood, glass] matching the piece geometry groups.
-    const stone = new THREE.MeshStandardMaterial({ color: 0xa39c90, roughness: 0.92 });
-    const wood = new THREE.MeshStandardMaterial({ color: 0x4a3222, roughness: 0.8 });
-    const glass = new THREE.MeshStandardMaterial({ color: 0x2a2630, roughness: 0.25, emissive: 0xffb45e, emissiveIntensity: 0.35 });
-    this.materials = Object.fromEntries(
-      Object.entries(PLAYER_COLORS).map(([k, c]) => {
-        const wall = new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, metalness: 0.02 });
-        const roofColor = new THREE.Color(c).multiplyScalar(k === 'white' ? 0.45 : 0.5);
-        const roof = new THREE.MeshStandardMaterial({ color: roofColor, roughness: 0.7 });
-        return [k, [wall, roof, stone, wood, glass]];
-      })
-    );
+    this.skins = {}; // owner -> skin id (cosmetic)
     this.spawning = []; // meshes popping in after placement
+    this.ghostMats = {}; // owner -> see-through material for hidden parts
+    // Placement hints (opening, free roads): pulsing rings / bars drawn over everything.
+    this.hintGroup = new THREE.Group();
+    this.hintGroup.renderOrder = 20;
+    scene.add(this.hintGroup);
+    this.hintKey = '';
+    this.hintTime = 0;
     this.player = 'red';
     this.vertexState = new Map(); // id -> { owner, level: 1|2, mesh }
     this.edgeState = new Map(); // id -> { owner, mesh }
@@ -290,8 +161,125 @@ export class Pieces {
     domElement.addEventListener('contextmenu', (ev) => ev.preventDefault());
   }
 
+  /**
+   * World positions of every small prop (trees, rocks, grass tufts, sheep, mine frames) on
+   * the tiles, built on first use so pieces can clear the ground they stand on.
+   */
+  propIndex() {
+    if (this._props) return this._props;
+    const list = [];
+    const m = new THREE.Matrix4(), w = new THREE.Matrix4(), v = new THREE.Vector3();
+    for (const t of this.tiles) {
+      const surf = t.tile && t.tile.surf;
+      if (!surf) continue;
+      surf.updateWorldMatrix(true, true);
+      surf.traverse((o) => {
+        if (o.isInstancedMesh) {
+          for (let i = 0; i < o.count; i++) {
+            o.getMatrixAt(i, m);
+            w.multiplyMatrices(o.matrixWorld, m);
+            v.setFromMatrixPosition(w);
+            list.push({ mesh: o, index: i, x: v.x, z: v.z });
+          }
+        } else if (o.isMesh && o.geometry && !(o.parent && o.parent.userData.robber)) {
+          if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+          if (o.geometry.boundingSphere.radius > 0.45) return; // terrain, base slab, water
+          o.getWorldPosition(v);
+          list.push({ mesh: o, index: -1, x: v.x, z: v.z });
+        }
+      });
+    }
+    this._props = list;
+    return list;
+  }
+
+  /** Hides props within `r` of (x, z), or within `r` of the segment to (x2, z2). */
+  clearProps(x, z, r, x2 = x, z2 = z) {
+    const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+    const dx = x2 - x, dz = z2 - z, len2 = dx * dx + dz * dz;
+    const touched = new Set();
+    for (const p of this.propIndex()) {
+      if (p.hidden) continue;
+      let t = len2 ? ((p.x - x) * dx + (p.z - z) * dz) / len2 : 0;
+      t = Math.max(0, Math.min(1, t));
+      const d = Math.hypot(p.x - (x + dx * t), p.z - (z + dz * t));
+      if (d > r) continue;
+      p.hidden = true;
+      if (p.index >= 0) { p.mesh.setMatrixAt(p.index, zero); touched.add(p.mesh); }
+      else p.mesh.visible = false;
+    }
+    for (const mesh of touched) { mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere?.(); }
+  }
+
+  /**
+   * Material for the see-through copy of a piece: drawn only where something (a tree, a
+   * mountain, another piece) is in front of it, so pieces stay visible from every angle.
+   */
+  ghostMaterial(owner) {
+    if (!this.ghostMats[owner]) {
+      this.ghostMats[owner] = new THREE.MeshBasicMaterial({
+        color: PLAYER_COLORS[owner], transparent: true, opacity: 0.55, depthWrite: false, depthFunc: THREE.GreaterDepth,
+      });
+    }
+    return this.ghostMats[owner];
+  }
+
+  addGhost(mesh, owner) {
+    const ghost = new THREE.Mesh(mesh.geometry, this.ghostMaterial(owner));
+    ghost.renderOrder = 10;
+    ghost.userData.noAO = true;
+    mesh.add(ghost);
+  }
+
+  /**
+   * Highlights legal spots: { vertices: [ids], edges: [ids] } in a player's colour.
+   * Called on every render; rebuilds only when the set changes.
+   */
+  setHints(spots, color) {
+    const key = `${color}|${spots.vertices.join(',')}|${spots.edges.join(',')}`;
+    if (key === this.hintKey) return;
+    this.hintKey = key;
+    for (const c of [...this.hintGroup.children]) this.hintGroup.remove(c);
+    if (!spots.vertices.length && !spots.edges.length) return;
+    if (!this._hintGeo) {
+      const ring = new THREE.RingGeometry(0.1, 0.16, 32);
+      ring.rotateX(-Math.PI / 2);
+      const dot = new THREE.CircleGeometry(0.07, 20);
+      dot.rotateX(-Math.PI / 2);
+      const bar = new THREE.BoxGeometry(0.36, 0.03, 0.08);
+      const barCore = new THREE.BoxGeometry(0.3, 0.035, 0.04);
+      this._hintGeo = { ring, dot, bar, barCore };
+    }
+    // white halo so the hint reads on any terrain, the player's colour in the middle
+    const halo = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthTest: false, depthWrite: false });
+    const core = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, depthTest: false, depthWrite: false });
+    const add = (geo, mat, x, y, z, ry = 0, order = 20) => {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x, y, z);
+      m.rotation.y = ry;
+      m.renderOrder = order;
+      this.hintGroup.add(m);
+    };
+    for (const id of spots.vertices) {
+      const v = this.graph.verts[id];
+      add(this._hintGeo.ring, halo, v.x, v.y + 0.05, v.z);
+      add(this._hintGeo.dot, core, v.x, v.y + 0.05, v.z, 0, 21);
+    }
+    for (const id of spots.edges) {
+      const e = this.graph.edges[id];
+      add(this._hintGeo.bar, halo, e.x, e.y + 0.06, e.z, -e.angle);
+      add(this._hintGeo.barCore, core, e.x, e.y + 0.065, e.z, -e.angle, 21);
+    }
+  }
+
   /** Pop-in animation for newly placed pieces; call once per frame. */
   update(dt) {
+    this.hintTime += dt;
+    if (this.hintGroup.children.length) {
+      const k = 1 + Math.sin(this.hintTime * 5) * 0.18;
+      for (const m of this.hintGroup.children) m.scale.setScalar(k);
+      this.hintGroup.children[0].material.opacity = 0.7 + Math.sin(this.hintTime * 5) * 0.25;
+    }
     for (let i = this.spawning.length - 1; i >= 0; i--) {
       const sp = this.spawning[i];
       sp.t = Math.min(1, sp.t + dt / 0.35);
@@ -309,7 +297,19 @@ export class Pieces {
   }
 
   setPlayer(name) {
-    if (this.materials[name]) this.player = name;
+    if (PLAYER_COLORS[name] !== undefined) this.player = name;
+  }
+
+  skinOf(owner) { return this.skins[owner] || DEFAULT_SKIN; }
+
+  materialsOf(owner) { return skinMaterials(this.skinOf(owner), PLAYER_COLORS[owner]); }
+
+  /** Equips a skin for one player and rebuilds that player's pieces already on the board. */
+  setSkin(owner, skin) {
+    if (this.skins[owner] === skin) return;
+    this.skins[owner] = skin;
+    for (const [id, s] of [...this.vertexState]) if (s.owner === owner) this._setVertex(id, owner, s.level, false);
+    for (const [id, s] of [...this.edgeState]) if (s.owner === owner) this.placeRoad(id, owner, false);
   }
 
   pick(ev) {
@@ -388,32 +388,37 @@ export class Pieces {
     this.vertexState.delete(id);
   }
 
-  _setVertex(id, owner, level) {
+  _setVertex(id, owner, level, animate = true) {
     this.removeVertex(id);
     const v = this.graph.verts[id];
-    const mesh = new THREE.Mesh(level === 2 ? cityGeometry : settlementGeometry, this.materials[owner]);
+    this.clearProps(v.x, v.z, level === 2 ? 0.5 : 0.42);
+    const mesh = new THREE.Mesh(skinGeometry(this.skinOf(owner), level === 2 ? 'city' : 'settlement'), this.materialsOf(owner));
     mesh.position.set(v.x, v.y, v.z);
     // front door toward the board centre
     mesh.rotation.y = Math.atan2(-v.x, -v.z);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.layers.enable(AO_LAYER);
+    this.addGhost(mesh, owner);
     this.group.add(mesh);
-    this.spawn(mesh);
+    if (animate) this.spawn(mesh);
     this.vertexState.set(id, { owner, level, mesh });
   }
 
-  placeRoad(id, owner) {
+  placeRoad(id, owner, animate = true) {
     this.removeEdge(id);
     const e = this.graph.edges[id];
-    const mesh = new THREE.Mesh(roadGeometry, this.materials[owner][0]);
+    const a = this.graph.verts[e.a], b = this.graph.verts[e.b];
+    this.clearProps(a.x, a.z, 0.2, b.x, b.z);
+    const mesh = new THREE.Mesh(skinGeometry(this.skinOf(owner), 'road'), this.materialsOf(owner)[0]);
     mesh.position.set(e.x, e.y, e.z);
     mesh.rotation.y = -e.angle;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.layers.enable(AO_LAYER);
+    this.addGhost(mesh, owner);
     this.group.add(mesh);
-    this.spawn(mesh);
+    if (animate) this.spawn(mesh);
     this.edgeState.set(id, { owner, mesh });
   }
 
@@ -432,7 +437,7 @@ export class Pieces {
 
   /** Opening-style demo: two settlements (one upgraded) and two roads per player. */
   demo(rand) {
-    const players = Object.keys(PLAYER_COLORS);
+    const players = PLAYER_KEYS.slice(0, 4);
     const taken = new Set();
     const tooClose = (v) => {
       for (const id of taken) {

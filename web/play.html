@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Catan · Game</title>
+  <meta name="theme-color" content="#0f1a22" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Catan" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <!-- Online server when it is not this page's own origin (static hosting, iOS app). -->
+  <meta name="catan-server" content="" />
+  <link rel="stylesheet" href="css/game.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <div id="overlay">
+    <h1>Catan</h1>
+    <div id="progress">Preparing...</div>
+  </div>
+
+  <!-- seats are created by main.js, one per player, around the screen edges -->
+  <div id="seats"></div>
+
+  <div id="message" class="glass">Building the board...</div>
+  <div id="banner"><i></i><span></span></div>
+  <div id="net" class="glass"></div>
+
+  <div id="dock" class="glass">
+    <div id="hand"></div>
+    <div class="controls">
+      <div id="dice"></div>
+      <button id="roll" class="btn primary" disabled>Roll</button>
+      <button id="tradeToggle" class="btn" data-sheet="tradeSheet" title="Trade"><span data-icon="swap"></span><span class="label">Trade</span></button>
+      <button id="cardsToggle" class="btn" data-sheet="cardsSheet" title="Development cards"><span data-icon="dev"></span><span class="label">Cards</span><span class="count" id="cardCount">0</span></button>
+      <button id="endturn" class="btn" disabled>End<span class="label">&nbsp;turn</span></button>
+      <button id="menuToggle" class="btn icon" data-sheet="menuSheet" title="Settings"><span data-icon="gear"></span></button>
+    </div>
+  </div>
+
+  <div id="drawerToggle">
+    <button class="btn glass" id="viewReset" title="Reset the view (V)"><span data-icon="home"></span></button>
+    <button class="btn glass" id="mapToggle" title="Minimap (M)"><span data-icon="map"></span></button>
+    <button class="btn glass" data-pane="chat" title="Chat"><span data-icon="chat"></span><span class="badge" id="chatBadge"></span></button>
+    <button class="btn glass" data-pane="log" title="Game log"><span data-icon="log"></span></button>
+    <button class="btn glass" data-pane="stats" title="Statistics"><span data-icon="stats"></span></button>
+  </div>
+  <div id="minimap" class="glass">
+    <div class="mm-head"><span>Map</span><small>click a tile to look there</small><button id="mapClose" title="Hide the map">✕</button></div>
+    <svg id="mmSvg" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+  <div id="drawer" class="glass">
+    <div class="tabs">
+      <button data-tab="chat">Chat</button><button data-tab="log">Log</button><button data-tab="stats">Stats</button>
+      <button class="close" title="Close">✕</button>
+    </div>
+    <div class="pane chat" data-pane="chat">
+      <div class="lines" id="chatLines"></div>
+      <form class="chatform" id="chatForm" autocomplete="off">
+        <div class="emo"><button type="button" data-emo="👍">👍</button><button type="button" data-emo="😂">😂</button><button type="button" data-emo="😡">😡</button><button type="button" data-emo="🤝">🤝</button></div>
+        <input id="chatInput" maxlength="200" placeholder="Say something..." />
+        <button class="btn" type="submit">Send</button>
+      </form>
+    </div>
+    <div class="pane" data-pane="log"><div class="lines" id="logLines"></div></div>
+    <div class="pane" data-pane="stats" id="statsPane"></div>
+  </div>
+
+  <div id="tradeSheet" class="sheet glass">
+    <h3>Bank &amp; harbours</h3>
+    <div class="row">
+      <span>Give</span><select id="give"></select>
+      <span>for</span><select id="get"></select>
+    </div>
+    <div class="row"><button id="trade" class="btn" disabled>Bank 4:1</button><span>Settle beside a harbour for 3:1 or 2:1.</span></div>
+    <div class="sep"></div>
+    <h3>Offer to players</h3>
+    <div class="row">
+      <span>Give</span><input id="giveN" type="number" min="1" max="5" value="1" />
+      <span>for</span><input id="getN" type="number" min="1" max="5" value="1" />
+      <button id="offer" class="btn" disabled>Offer</button>
+    </div>
+  </div>
+
+  <div id="cardsSheet" class="sheet glass">
+    <h3>Development cards</h3>
+    <div class="row"><button id="buydev" class="btn" disabled>Buy card ⛰️🐑🌾</button></div>
+    <div id="cards"></div>
+    <p>One card per turn, never on the turn you bought it. Knights move the robber; 3+ knights is the largest army (2 VP). Victory point cards stay hidden.</p>
+  </div>
+
+  <div id="menuSheet" class="sheet glass wide">
+    <h3>Sound</h3>
+    <div class="set-row"><label for="volume">Volume</label><input id="volume" type="range" min="0" max="1" step="0.05" /></div>
+    <div class="set-row"><label for="mute">Mute all sounds</label><label class="switch"><input id="mute" type="checkbox" /><span></span></label></div>
+    <div class="sep"></div>
+    <h3>Game</h3>
+    <div class="set-row"><label for="botSpeed">Bot speed</label>
+      <select id="botSpeed"><option value="slow">Slow</option><option value="normal">Normal</option><option value="fast">Fast</option><option value="instant">Instant</option></select>
+    </div>
+    <div class="set-row" id="timerRow"><label for="timerSel">Turn timer</label>
+      <select id="timerSel"><option value="0">Off</option><option value="45">45 s</option><option value="90">90 s</option><option value="150">150 s</option></select>
+    </div>
+    <div class="sep"></div>
+    <h3>Your pieces</h3>
+    <div class="skins" id="skins"></div>
+    <div class="sep"></div>
+    <h3>View</h3>
+    <div class="set-row"><label for="quality">Graphics</label>
+      <select id="quality"><option value="auto">Auto</option><option value="high">High</option><option value="low">Battery saver</option></select>
+    </div>
+    <div class="set-row"><label for="autoRotate">Slowly orbit the island</label><label class="switch"><input id="autoRotate" type="checkbox" /><span></span></label></div>
+    <div class="row"><button id="resetView" class="btn">Reset view</button><button id="reshuffle" class="btn">New board</button><button id="leave" class="btn">Leave to lobby</button></div>
+    <p>Drag to orbit, pinch or scroll to zoom, two-finger or right-drag to pan. On your turn roll, then tap a corner to build a hut, your hut to make it a house, or an edge for a road.</p>
+    <p>Road 🌲🧱 · Hut 🌲🧱🐑🌾 · House ⛰️⛰️⛰️🌾🌾 · Card ⛰️🐑🌾. First to 10 points wins.</p>
+    <p>Board <span id="seed">-</span> <span id="hires"></span></p>
+  </div>
+
+  <div id="offerbox" class="glass"></div>
+  <div id="chooser" class="glass"></div>
+
+  <div id="endgame"><div class="card glass" id="endCard"></div></div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
